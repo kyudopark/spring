@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.ezen.mapper.BoardMapper">
+
+	<sql id="search">
+		<if test="type=='writer'">
+			where writer like concat('%', #{keyword}, '%' )
+		</if>
+		
+		<if test="type=='title'">
+			where title like concat('%', #{keyword}, '%' )
+		</if>
+		
+		<if test="type=='content'">
+			where content like concat('%', #{keyword}, '%' )
+		</if>
+		
+		
+	</sql>
+
+	<select resultType="kr.co.ezen.entity.Board" id="getList" parameterType="kr.co.ezen.entity.Criteria">
+	
+		select *from ezenBoard <include refid="search"/> order by boGroup desc, boSequence asc
+		limit #{pageStart}, #{perPageNum}
+	</select>
+	
+	<insert id="insert" parameterType = "kr.co.ezen.entity.Board">
+		insert into ezenBoard(idx, memberID, title, content, writer, boGroup, boSequence, boLevel, boUsable)
+		select IFNULL(max(idx)+1, 1), #{memberID}, #{title}, #{content}, #{writer},
+		IFNULL(max(boGroup)+1, 0), 0, 0, 1 from ezenBoard
+	</insert>
+	
+	<!-- 쿼리문에서 삽입된 idx와 boGroup을 확인해보고 싶다. -->
+	
+	<insert id="insertSelectKey" parameterType="kr.co.ezen.entity.Board">
+		<selectKey resultType="kr.co.ezen.entity.Board" order="BEFORE" keyProperty="idx,boGroup">
+			select IFNULL(max(idx)+1, 1) as idx,IFNULL(max(boGroup)+1, 0)as boGroup from ezenBoard
+		</selectKey>
+		insert into ezenBoard(idx, memberID, title, content, writer, boGroup, boSequence, boLevel, boUsable) values(#{idx}, #{memberID}, #{title}, #{content}, #{writer},#{boGroup},0,0,1)
+		
+	</insert>
+	
+	<select resultType="kr.co.ezen.entity.Member" id="login" parameterType="kr.co.ezen.entity.Member">
+		select *from ezenMember where memberID=#{memberID} and memberPwd=#{memberPwd}
+	</select>
+	
+	<select resultType="kr.co.ezen.entity.Board" id="read" >
+		select *from ezenBoard where idx=#{idx} 
+	</select>
+	
+	<delete id="delete">
+		update ezenBoard set boUsable=0 where idx=#{idx} 
+	</delete>
+	
+	<update id="update" parameterType="kr.co.ezen.entity.Board">
+		update ezenBoard set title=#{title}, content=#{content} where idx=#{idx}
+	</update>
+	
+	<update id="replyUpdate" parameterType="kr.co.ezen.entity.Board">
+		update ezenBoard set boSequence=boSequence+1 where boGroup=#{boGroup} and boSequence > #{boSequence}
+	</update>
+	
+	<insert id="replyInsert" parameterType = "kr.co.ezen.entity.Board">
+		<selectKey resultType="kr.co.ezen.entity.Board" order="BEFORE" keyProperty="idx">
+			select IFNULL(max(idx)+1, 1) as idx from ezenBoard
+		</selectKey>
+		insert into ezenBoard(idx, memberID, title, content, writer, boGroup, boSequence, boLevel, boUsable) values (#{idx}, #{memberID}, #{title}, #{content}, #{writer}, #{boGroup}, #{boSequence}, #{boLevel}, 1) 
+		
+	</insert>
+	
+	<select id="totalCount" resultType="int" parameterType = "kr.co.ezen.entity.Criteria">
+		select count(*) from ezenBoard
+		<include refid="search"/>
+	</select>
+	
+	<update id="cntUpdate">
+    update ezenBoard set count = count + 1 where idx=#{idx}
+	</update>
+	
+</mapper>
